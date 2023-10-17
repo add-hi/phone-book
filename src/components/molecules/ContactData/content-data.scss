@@ -1,0 +1,40 @@
+.card-accordion {
+    &.hidden {
+        display: none;
+    }
+
+    .accordion {
+        width: 100%;
+
+        .MuiAccordionSummary-content {
+            width: 100%;
+            overflow: hidden;
+        }
+
+        .MuiBadge-badge {
+            margin-top: 12px;
+            margin-right: 14px;
+        }
+
+        .description {
+            span {
+                display: flex;
+                align-items: center;
+                margin-bottom: 10px;
+            }
+        }
+    }
+}
+
+.button-contact-list {
+    display: flex;
+
+    a {
+        margin-right: 4px;
+        width: 64%;
+    }
+
+    .refresh-btn {
+        width: 36%;
+    }
+}
