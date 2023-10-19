@@ -78,7 +78,6 @@ const FormContact: FC<FormContactProps> = () => {
     let idContact = 0;
 
     useEffect(() => {
-
         if (dataQuery) {
             setHiddenNumber(true);
             const dataTemp = JSON.parse(dataQuery)

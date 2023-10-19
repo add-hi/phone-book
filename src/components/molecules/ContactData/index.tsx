@@ -91,13 +91,16 @@ query GetContactList {
 const ContactData: FC<Props> = ({ dataFavorite, dataRegular }) => {
 
     const [currentPage, setCurrentPage] = useState<number>(1);
+    const [perPage, setPerPage] = useState<number>(5);
     const [dataContact, setDataContact] = useState<Contact[]>([])
     const [hiddenElements, setHiddenElements] = useState<Contact[]>([]);
     const [loadQuery, { data, loading, refetch }] = useLazyQuery<{ contact: Contact[] }>(GET_CONTACT_LIST);
-    const navigate = useNavigate();
-    let elementBody = null;
-    //const listContactFavorite = useContext(AppContext);
+    const [pageCount, setPageCount] = useState<number>(0);
+    const [displayedData, setDisplayedData] = useState<Contact[]>([])
 
+    const navigate = useNavigate();
+    let updateData: Contact[] = [];
+    //const listContactFavorite = useContext(AppContext);
     useEffect(() => {
         const storedData = sessionStorage.getItem('ContactList');
         if (storedData) {
@@ -108,15 +111,28 @@ const ContactData: FC<Props> = ({ dataFavorite, dataRegular }) => {
     }, []);
 
     useEffect(() => {
-        if (data?.contact) {
+        if (data?.contact) {            
             setDataContact(data.contact);
             sessionStorage.setItem('ContactList', JSON.stringify(data.contact))
         }
     }, [data]);
 
     useEffect(() => {
-        handleData();
+        if (dataRegular != undefined) {
+            setDataContact([dataRegular, ...dataContact]);
+            sessionStorage.setItem('ContactList', JSON.stringify(dataContact))
+        }
     }, [dataRegular])
+
+    useEffect(() => {
+        if (dataContact) {
+            pagination();
+        }
+    }, [dataContact])
+
+    useEffect(()=>{
+        pagination();
+    },[currentPage])
 
     const handleRefetch = () => {
         refetch();
@@ -128,21 +144,14 @@ const ContactData: FC<Props> = ({ dataFavorite, dataRegular }) => {
         if (dataContact) {
             dataTemp = dataContact.filter(item => item.id !== data.id);
             sessionStorage.setItem('ContactList', JSON.stringify(dataTemp));
-
             setDataContact(dataTemp);
             dataFavorite(data);
-
-            if (hiddenElements.includes(data.id)) {
-                setHiddenElements(hiddenElements.filter((item) => item !== data.id));
-            } else {
-                setHiddenElements([...hiddenElements, data.id]);
-            }
         }
     }
 
     const handleEditData = (_data: Contact) => {
         const dataToSend = { _data };
-        navigate(`/Form?data=${JSON.stringify(dataToSend)}`);
+        //navigate(`/Form?data=${JSON.stringify(dataToSend)}`);
     }
 
     if (loading) return (
@@ -160,83 +169,23 @@ const ContactData: FC<Props> = ({ dataFavorite, dataRegular }) => {
 
     if (!dataContact) return <p>Data Empty</p>
 
-    const element = (dataList: Contact[]) => {
-        const divElement = dataList.map((item, i) => (
-            <div className={`card-accordion ${hiddenElements.includes(item.id) ? 'hidden' : ''}`} key={i}>
-                <Card customStyles={ContactListStyle}>
-                    <Accordion className='accordion'>
-                        <AccordionSummary
-                            aria-controls="panel1a-content"
-                            id="panel1a-header"
-                            expandIcon={<ExpandMoreIcon />}
-                        >
-                            <>
-                                <Badge
-                                    badgeContent={item.phones.length > 1 ? item.phones.length : null}
-                                    color="info"
-                                >
-                                    <Avatar sx={{ ...AvatarStyle, ...stringAvatar(`${item.first_name} ${item.last_name}`).sx }} />
-                                </Badge>
-                                <Typography><b>{item.first_name} {item.last_name}</b> <br />{item.phones[0]?.number}</Typography>
-                            </>
-                        </AccordionSummary>
-                        <AccordionDetails>
-                            <Typography className='description'>
-                                {item.phones.map((phone, index) => (
-                                    <span key={index}><ContactPageIcon /> {phone.number} <br /></span>
-                                ))}
-                            </Typography>
-                            <Box sx={{
-                                display: 'flex',
-                                flexDirection: 'column',
-                                alignItems: 'center',
-                            }}>
-                                <ButtonGroup variant="outlined" aria-label="outlined button group">
-                                    <IconButton aria-label="delete" color="error">
-                                        <DeleteIcon />
-                                    </IconButton>
-                                    <IconButton aria-label="Edit" color="primary" onClick={() => handleEditData(item)}>
-                                        <EditIcon />
-                                    </IconButton>
-                                    <IconButton aria-label="favorite" color="success" onClick={() => handleFavorite(item)}>
-                                        <FavoriteIcon />
-                                    </IconButton>
-                                </ButtonGroup>
-                            </Box>
-                        </AccordionDetails>
-                    </Accordion>
-                </Card>
-                <Gap height={8} />
-            </div>
-        ))
-
-        return divElement;
-    }
-
-    const handleData = () => {
+    const pagination = () => {
         let dataList = dataContact;
 
-        if (dataRegular != undefined) {
-            //setDataContact(prevData => [...prevData, dataRegular]);
-            //sessionStorage.setItem('ContactList', JSON.stringify(dataContact))
-            dataList.unshift(dataRegular);
-        }
+        let pageCount = Math.ceil(dataList.length / perPage);
+        let startIndex = (currentPage - 1) * perPage;
+        let endIndex = startIndex + perPage;
+        let displayedData = dataList.slice(startIndex, endIndex);
 
-        const perPage = 10;
-        const pageCount = Math.ceil(dataList.length / perPage);
-        const handleChange = (e: ChangeEvent<unknown>, value: number) => {
-            setCurrentPage(value);
-        };
-        const startIndex = (currentPage - 1) * perPage;
-        const endIndex = startIndex + perPage;
-        const displayedData = dataList.slice(startIndex, endIndex);
-
-        elementBody = element(displayedData);
+        setPageCount(pageCount);
+        setDisplayedData(displayedData);
     }
 
+    const handleChange = (e: ChangeEvent<unknown>, value: number) => {
+        setCurrentPage(value);
+    };
 
-    handleData();
-    
+
     return (
         <>
             <div className='button-contact-list'>
@@ -259,10 +208,59 @@ const ContactData: FC<Props> = ({ dataFavorite, dataRegular }) => {
                 </LoadingButton>
             </div>
             <Gap height={10} />
-            {elementBody}
-            {/* <Box display="flex" justifyContent="center" >
+            {displayedData.map((item, i) => (
+                <div className={`card-accordion`} key={i}>
+                    <Card customStyles={ContactListStyle}>
+                        <Accordion className='accordion'>
+                            <AccordionSummary
+                                aria-controls="panel1a-content"
+                                id="panel1a-header"
+                                expandIcon={<ExpandMoreIcon />}
+                            >
+                                <>
+                                    <Badge
+                                        badgeContent={item.phones.length > 1 ? item.phones.length : null}
+                                        color="info"
+                                    >
+                                        <Avatar sx={{ ...AvatarStyle, ...stringAvatar(`${item.first_name} ${item.last_name}`).sx }} />
+                                    </Badge>
+                                    <Typography><b>{item.first_name} {item.last_name}</b> <br />{item.phones[0]?.number}</Typography>
+                                </>
+                            </AccordionSummary>
+                            <AccordionDetails>
+                                <Typography className='description'>
+                                    {item.phones.map((phone, index) => (
+                                        <span key={index}><ContactPageIcon /> {phone.number} <br /></span>
+                                    ))}
+                                </Typography>
+                                <Box sx={{
+                                    display: 'flex',
+                                    flexDirection: 'column',
+                                    alignItems: 'center',
+                                }}>
+                                    <ButtonGroup variant="outlined" aria-label="outlined button group">
+                                        <IconButton aria-label="delete" color="error">
+                                            <DeleteIcon />
+                                        </IconButton>
+                                        <Link to={'/Form'} state={item}>
+                                            <IconButton aria-label="Edit" color="primary">
+                                                <EditIcon />
+                                            </IconButton>
+                                        </Link>
+                                        <IconButton aria-label="favorite" color="success" onClick={() => handleFavorite(item)}>
+                                            <FavoriteIcon />
+                                        </IconButton>
+                                    </ButtonGroup>
+                                </Box>
+                            </AccordionDetails>
+                        </Accordion>
+                    </Card>
+                    <Gap height={8} />
+                </div>
+            ))}
+            <Box display="flex" justifyContent="center" >
                 <Pagination count={pageCount} page={currentPage} onChange={handleChange} />
-            </Box > */}
+            </Box >
         </>
     )
 
