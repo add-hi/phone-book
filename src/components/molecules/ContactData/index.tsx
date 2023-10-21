@@ -12,7 +12,7 @@ import FavoriteIcon from '@mui/icons-material/Favorite';
 import { useQuery, gql, useLazyQuery } from '@apollo/client';
 import { AppContext } from '../../../libs';
 import './content-data.scss'
-import { Link, useNavigate } from 'react-router-dom';
+import { Link, useLocation, useNavigate } from 'react-router-dom';
 import { Button, IconButton } from '@mui/material';
 import AddBoxIcon from '@mui/icons-material/AddBox';
 import LoadingButton from '@mui/lab/LoadingButton';
@@ -76,30 +76,41 @@ function stringAvatar(name: string) {
 }
 
 const GET_CONTACT_LIST = gql`
-query GetContactList {
-    contact {
-      created_at
-      first_name
-      id
-      last_name
-      phones {
-        number
-      }
+query GetContactList (
+  $distinct_on: [contact_select_column!], 
+  $limit: Int, 
+  $offset: Int, 
+  $order_by: [contact_order_by!], 
+  $where: contact_bool_exp
+) {
+  contact(
+    distinct_on: $distinct_on, 
+    limit: $limit, 
+    offset: $offset, 
+    order_by: { created_at: desc },
+    where: $where
+  ){
+    created_at
+    first_name
+    id
+    last_name
+    phones {
+      number
     }
   }
+}
 `;
 const ContactData: FC<Props> = ({ dataFavorite, dataRegular }) => {
 
     const [currentPage, setCurrentPage] = useState<number>(1);
     const [perPage, setPerPage] = useState<number>(5);
     const [dataContact, setDataContact] = useState<Contact[]>([])
-    const [hiddenElements, setHiddenElements] = useState<Contact[]>([]);
     const [loadQuery, { data, loading, refetch }] = useLazyQuery<{ contact: Contact[] }>(GET_CONTACT_LIST);
     const [pageCount, setPageCount] = useState<number>(0);
     const [displayedData, setDisplayedData] = useState<Contact[]>([])
 
+    const location = useLocation();
     const navigate = useNavigate();
-    let updateData: Contact[] = [];
     //const listContactFavorite = useContext(AppContext);
     useEffect(() => {
         const storedData = sessionStorage.getItem('ContactList');
@@ -108,10 +119,18 @@ const ContactData: FC<Props> = ({ dataFavorite, dataRegular }) => {
         } else {
             loadQuery();
         }
+
+        if (location.state) {
+            let data = location.state;
+            if (data.refetch) {
+                navigate('/', { replace: true })
+                handleRefetch();
+            }
+        }
     }, []);
 
     useEffect(() => {
-        if (data?.contact) {            
+        if (data?.contact) {
             setDataContact(data.contact);
             sessionStorage.setItem('ContactList', JSON.stringify(data.contact))
         }
@@ -130,9 +149,9 @@ const ContactData: FC<Props> = ({ dataFavorite, dataRegular }) => {
         }
     }, [dataContact])
 
-    useEffect(()=>{
+    useEffect(() => {
         pagination();
-    },[currentPage])
+    }, [currentPage])
 
     const handleRefetch = () => {
         refetch();
@@ -147,11 +166,6 @@ const ContactData: FC<Props> = ({ dataFavorite, dataRegular }) => {
             setDataContact(dataTemp);
             dataFavorite(data);
         }
-    }
-
-    const handleEditData = (_data: Contact) => {
-        const dataToSend = { _data };
-        //navigate(`/Form?data=${JSON.stringify(dataToSend)}`);
     }
 
     if (loading) return (

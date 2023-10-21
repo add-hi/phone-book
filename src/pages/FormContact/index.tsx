@@ -14,6 +14,19 @@ interface FormContactProps {
 
 }
 
+type DataState = {
+    __typename: string;
+    created_at: string;
+    first_name: string;
+    id: number;
+    last_name: string;
+    phones: Array<{
+        __typename: string;
+        number: string;
+    }>;
+};
+
+
 const ADD_CONTACT = gql`
   mutation AddContactWithPhones(
     $first_name: String!, 
@@ -55,56 +68,43 @@ mutation EditContactById($id: Int!, $_set: contact_set_input) {
 `;
 
 const FormContact: FC<FormContactProps> = () => {
-    const navigate = useNavigate();
-    const [contactData, setContactData] = useState({
-        first_name: '',
-        last_name: '',
-        phones: [{
-            number: ''
-        }],
-    });
-    const [editData, setEditData] = useState({
-        first_name: '',
-        last_name: '',
-    });
+    const [contactData, setContactData] = useState({first_name: '',last_name: '',phones: [{number: ''}],});
     const [addContact] = useMutation(ADD_CONTACT);
     const [editContact] = useMutation(EDIT_CONTACT);
     const [message, setMessage] = useState('')
     const [open, setOpen] = React.useState(false);
     const [hiddenNumber, setHiddenNumber] = useState(false);
+    const [dataState, setDataState] = useState<DataState | null>(null)
     const location = useLocation();
-    const queryParams = new URLSearchParams(location.search);
-    const dataQuery = queryParams.get('data');
-    let idContact = 0;
+    const navigate = useNavigate();
+
 
     useEffect(() => {
-        if (dataQuery) {
+        if (location.state) {
+            let data = location.state;
+            setContactData({
+                ...contactData,
+                first_name: data.first_name,
+                last_name: data.last_name
+            });
+            setDataState(data);
             setHiddenNumber(true);
-            const dataTemp = JSON.parse(dataQuery)
-            let phoneNumbers = [{ number: '' }]
-            if (dataTemp?.phoneNumbers) {
-                phoneNumbers = dataTemp.phones.map((phone: string | number | any) => phone.number);
-            }
-
-            idContact = Number(dataTemp._data.id);
-            const dataEdited = {
-                first_name: dataTemp._data.first_name,
-                last_name: dataTemp._data.last_name,
-            }
-
-            setEditData(dataEdited)
         }
     }, [])
 
     const handleAddEditContact = () => {
-        if (dataQuery) {
+        if (dataState) {
+            const dataSend: Partial<DataState> = {
+                first_name: contactData.first_name,
+                last_name: contactData.last_name,
+            }
             editContact({
                 variables: {
-                    id: idContact,
-                    _set: editData,
+                    id: dataState.id,
+                    _set: dataSend,
                 }
             }).then((result) => {
-                navigate('/?refetch=true')
+                navigate('/', { state: { refetch: true } });
             }).catch((error) => {
                 setOpen(true);
                 setMessage("Error editing contact")
@@ -113,7 +113,7 @@ const FormContact: FC<FormContactProps> = () => {
             addContact({
                 variables: contactData
             }).then((result) => {
-                navigate('/?refetch=true')
+                navigate('/', { state: { refetch: true } });
             }).catch((error) => {
                 setOpen(true);
                 setMessage("Error adding contact")

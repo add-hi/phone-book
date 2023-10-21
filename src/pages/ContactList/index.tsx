@@ -53,16 +53,13 @@ const ContactList: FC = () => {
     const elementRef = useRef<HTMLElement | null | any>(null);
     const [elementFavorite, setElementFavorite] = useState<any>(null);
 
-    const location = useLocation();
-    const queryParams = new URLSearchParams(location.search);
-    const refetchQuery = queryParams.get('refetch');
-
     useEffect(() => {
         let favoriteData = sessionStorage.getItem('ContactFavorite');
         if (favoriteData) {
             const storageData = JSON.parse(favoriteData);
             setDataFavorite(storageData);
         }
+
     }, [])
 
     const handleDeleteFavorite = (_data: Contact | any) => {
